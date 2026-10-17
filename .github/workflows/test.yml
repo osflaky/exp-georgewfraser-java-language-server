@@ -1,0 +1,38 @@
+name: Test
+
+on:
+  workflow_dispatch:
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - os: macos-latest
+          arch: arm64
+          runner: macos-latest
+          distribution: temurin
+          expander_leg: macos-latest--arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up JDK
+      uses: actions/setup-java@v4
+      with:
+        java-version: '25'
+        distribution: ${{ matrix.distribution }}
+        architecture: ${{ matrix.arch == 'arm64' && 'aarch64' || 'x64' }}
+        cache: maven
+    - name: Run Java tests
+      env:
+        # The Bazel test fixtures pin Bazel 4.2.4 (.bazelversion), which has no
+        # windows-arm64 release binary, so bazelisk fails with "not found" on
+        # windows-11-arm. Fetch the x86_64 binary there instead; Windows 11 on
+        # ARM runs it under x64 emulation. Empty means bazelisk's default URL.
+        BAZELISK_FORMAT_URL: ${{ (matrix.os == 'windows-latest' && matrix.arch 
+          == 'arm64') && 
+          'https://releases.bazel.build/%v/release/bazel-%v-%o-x86_64%e' || '' 
+          }}
+      run: mvn --batch-mode test
+    name: build [${{ matrix.expander_leg }}]
+    timeout-minutes: 150
